@@ -901,7 +901,7 @@ func collectStackUnitOutputs(
 		if err != nil {
 			if !shouldFallBackToMockOutputs(pctx, err) ||
 				!dependencyConfig.shouldReturnMockOutputs(pctx) {
-				return nil, fmt.Errorf("stack unit %s output fetch failed: %w", unit.Name, err)
+				return nil, StackUnitOutputFetchError{UnitName: unit.Name, Err: err}
 			}
 
 			if mock, ok := unitMockOutput(dependencyConfig, unit.Name); ok {
