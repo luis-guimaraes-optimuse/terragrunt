@@ -340,6 +340,7 @@ func TestRenderJSONConfig(t *testing.T) {
 					"if_exists":         "overwrite_terragrunt",
 					"if_disabled":       "skip",
 					"hcl_fmt":           nil,
+					"mutable":           nil,
 					"contents": `provider "aws" {
   region = "us-east-1"
 }
@@ -460,6 +461,7 @@ func TestRenderJSONConfigWithIncludesDependenciesAndLocals(t *testing.T) {
 					"if_exists":         "overwrite",
 					"if_disabled":       "skip",
 					"hcl_fmt":           nil,
+					"mutable":           nil,
 					"contents":          "# This is just a test",
 				},
 			},

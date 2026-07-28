@@ -88,6 +88,11 @@ const (
 	// records through the configured logs exporter and correlating them with
 	// traces via the active span.
 	OtelLogs = "otel-logs"
+	// MutableGenerate gates the mutable attribute on the generate block and the
+	// default it changes: generated files are deduplicated through
+	// content-addressable storage and hard-linked into each working directory
+	// rather than written per unit.
+	MutableGenerate = "mutable-generate"
 )
 
 const (
@@ -187,6 +192,9 @@ func NewExperiments() Experiments {
 		},
 		{
 			Name: OtelLogs,
+		},
+		{
+			Name: MutableGenerate,
 		},
 	}
 }

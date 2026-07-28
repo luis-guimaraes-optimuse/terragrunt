@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -3647,6 +3648,7 @@ func TestReadTerragruntConfigFull(t *testing.T) {
 				"path":              "provider.tf",
 				"if_exists":         "overwrite_terragrunt",
 				"hcl_fmt":           nil,
+				"mutable":           nil,
 				"if_disabled":       "skip",
 				"comment_prefix":    "# ",
 				"disable_signature": false,
@@ -4139,6 +4141,103 @@ func TestTerragruntGenerateBlockEnable(t *testing.T) {
 	)
 	require.NoError(t, err)
 	assert.True(t, helpers.FileIsInFolder(t, "data.txt", generateTestCase))
+}
+
+// TestTerragruntMutableGenerateBlock verifies that units generating identical
+// contents share one read-only file, and that a block asking to stay mutable
+// gets its own writable copy.
+func TestTerragruntMutableGenerateBlock(t *testing.T) {
+	t.Parallel()
+
+	if helpers.IsWindows() {
+		t.Skip("read-only permission bits are not meaningfully observable on Windows")
+	}
+
+	tmpEnvPath := helpers.CopyEnvironment(t, testFixtureCodegenPath)
+	fixtureRoot := filepath.Join(tmpEnvPath, testFixtureCodegenPath, "mutable-generate")
+
+	generated := map[string]os.FileInfo{}
+
+	for _, unit := range []string{"unit-a", "unit-b", "unit-mutable"} {
+		unitPath := filepath.Join(fixtureRoot, unit)
+		helpers.CleanupTerraformFolder(t, unitPath)
+		helpers.CleanupTerragruntFolder(t, unitPath)
+
+		_, _, err := helpers.RunTerragruntCommandWithOutput(
+			t,
+			"terragrunt exec --experiment mutable-generate --working-dir "+unitPath+" -- true",
+		)
+		require.NoError(t, err)
+
+		generated[unit] = statGeneratedFile(t, unitPath, "provider.tf")
+	}
+
+	assert.True(t, os.SameFile(generated["unit-a"], generated["unit-b"]),
+		"units generating identical contents must share one file")
+	assert.Equal(t, os.FileMode(0444), generated["unit-a"].Mode().Perm(),
+		"deduplicated files must be read-only so an edit cannot reach the shared store")
+
+	assert.False(t, os.SameFile(generated["unit-a"], generated["unit-mutable"]),
+		"a mutable generate block must get its own file")
+	assert.NotZero(t, generated["unit-mutable"].Mode().Perm()&0200,
+		"a mutable generate block must stay writable")
+}
+
+// TestTerragruntMutableGenerateBlockRequiresExperiment verifies that the mutable
+// attribute is rejected until the experiment gating it is enabled.
+func TestTerragruntMutableGenerateBlockRequiresExperiment(t *testing.T) {
+	t.Parallel()
+
+	tmpEnvPath := helpers.CopyEnvironment(t, testFixtureCodegenPath)
+	unitPath := filepath.Join(
+		tmpEnvPath,
+		testFixtureCodegenPath,
+		"mutable-generate",
+		"unit-mutable",
+	)
+	helpers.CleanupTerraformFolder(t, unitPath)
+	helpers.CleanupTerragruntFolder(t, unitPath)
+
+	_, _, err := helpers.RunTerragruntCommandWithOutput(
+		t,
+		"terragrunt exec --working-dir "+unitPath+" -- true",
+	)
+
+	var experimentErr config.MutableGenerateRequiresExperimentError
+	require.ErrorAs(t, err, &experimentErr)
+}
+
+// statGeneratedFile locates a generated file inside the unit's cache dir, which
+// is nested under content-addressed directory names the test cannot predict.
+func statGeneratedFile(t *testing.T, unitPath, name string) os.FileInfo {
+	t.Helper()
+
+	var found os.FileInfo
+
+	require.NoError(t, filepath.WalkDir(
+		filepath.Join(unitPath, util.TerragruntCacheDir),
+		func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+
+			if d.IsDir() || d.Name() != name {
+				return nil
+			}
+
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+
+			found = info
+
+			return nil
+		},
+	))
+	require.NotNil(t, found, "expected %s to be generated under %s", name, unitPath)
+
+	return found
 }
 
 func TestTerragruntRemoteStateCodegenGeneratesBackendBlock(t *testing.T) {
