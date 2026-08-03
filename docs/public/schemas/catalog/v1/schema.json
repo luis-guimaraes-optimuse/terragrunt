@@ -21,7 +21,7 @@
     },
     "description": {
       "type": "string",
-      "description": "Short description, taken from the README front matter or the text under its headings."
+      "description": "Short description, taken from the README front matter or the text under its headings. Absent when the entry has none."
     },
     "tags": {
       "type": "array",
@@ -53,10 +53,6 @@
     "doc": {
       "type": "string",
       "description": "README body as written, with front matter removed. Absent when the entry has no README."
-    },
-    "copyable": {
-      "type": "boolean",
-      "description": "True when the entry is installed by copying its directory (units and stacks) rather than by scaffolding. Absent when false."
     }
   },
   "additionalProperties": false,

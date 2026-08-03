@@ -394,7 +394,7 @@ func TestCatalogNonTTYFailsFast(t *testing.T) {
 func TestCatalogJSONLFormat(t *testing.T) {
 	t.Parallel()
 
-	workDir := catalogJSONLFixture(t)
+	workDir := catalogFixture(t)
 
 	stdout, _, err := helpers.RunTerragruntCommandWithOutput(t,
 		"terragrunt catalog --experiment catalog-format --format jsonl --working-dir "+workDir)
@@ -419,10 +419,6 @@ func TestCatalogJSONLFormat(t *testing.T) {
 	assert.Equal(t, "Creates a VPC.", vpc.Description)
 	assert.Equal(t, []string{"networking"}, vpc.Tags)
 	assert.Contains(t, vpc.Doc, "Everything a VPC needs.")
-	assert.False(t, vpc.Copyable)
-
-	assert.True(t, byDir["units/app"].Copyable)
-	assert.True(t, byDir["stacks/prod"].Copyable)
 }
 
 // TestCatalogJSONLFormatWithoutTTY guards the non-interactive path against the
@@ -446,12 +442,66 @@ func TestCatalogJSONLFormatWithoutTTY(t *testing.T) {
 		t.Skip("a controlling terminal is available; a regression would launch the catalog TUI for real")
 	}
 
-	workDir := catalogJSONLFixture(t)
+	workDir := catalogFixture(t)
 
 	stdout, _, err := helpers.RunTerragruntCommandWithOutput(t,
 		"terragrunt catalog --experiment catalog-format --format jsonl --working-dir "+workDir)
 	require.NoError(t, err)
 	assert.Len(t, parseCatalogJSONL(t, stdout), 4)
+}
+
+// TestCatalogMDFormat renders a catalog as a Markdown document and checks the
+// sections it wrote.
+func TestCatalogMDFormat(t *testing.T) {
+	t.Parallel()
+
+	workDir := catalogFixture(t)
+
+	stdout, _, err := helpers.RunTerragruntCommandWithOutput(t,
+		"terragrunt catalog --experiment catalog-format --format md --working-dir "+workDir)
+	require.NoError(t, err)
+
+	assert.True(t, strings.HasPrefix(stdout, "# Terragrunt Catalog\n"), "the header opens the document")
+
+	for _, want := range []string{
+		backticks(`## VPC
+
+Creates a VPC.
+
+| Field | Value |
+| --- | --- |
+| Kind | ~module~ |
+`),
+		backticks(`
+| Tag |
+| --- |
+| ~networking~ |
+`),
+		// A component with no README has no description, so its table opens the
+		// section.
+		backticks(`## service
+
+| Field | Value |
+`),
+		"## app",
+		"## prod",
+		backticks(`~~~markdown
+Everything a VPC needs.
+~~~
+`),
+		backticks(`| Component | Kind | Component source |
+| --- | --- | --- |
+`),
+		backticks("| VPC | ~module~ | "),
+	} {
+		assert.Contains(t, stdout, want)
+	}
+
+	assert.True(
+		t,
+		strings.HasSuffix(stdout, "\nDiscovered 4 components from 1 source.\n"),
+		"the count closes the document",
+	)
 }
 
 func TestCatalogJSONLFormatRequiresExperiment(t *testing.T) {
@@ -463,7 +513,7 @@ func TestCatalogJSONLFormatRequiresExperiment(t *testing.T) {
 		)
 	}
 
-	workDir := catalogJSONLFixture(t)
+	workDir := catalogFixture(t)
 
 	stdout, _, err := helpers.RunTerragruntCommandWithOutput(t,
 		"terragrunt catalog --format jsonl --working-dir "+workDir)
@@ -477,7 +527,7 @@ func TestCatalogJSONLFormatRequiresExperiment(t *testing.T) {
 func TestCatalogUnknownFormat(t *testing.T) {
 	t.Parallel()
 
-	workDir := catalogJSONLFixture(t)
+	workDir := catalogFixture(t)
 
 	stdout, _, err := helpers.RunTerragruntCommandWithOutput(t,
 		"terragrunt catalog --experiment catalog-format --format pdf --working-dir "+workDir)
@@ -593,10 +643,10 @@ func catalogManyModulesFixture(t *testing.T, count int) string {
 	return workDir
 }
 
-// catalogJSONLFixture builds a repository holding one component of each kind
+// catalogFixture builds a repository holding one component of each kind
 // and a working directory whose catalog configuration points at it, then
 // returns the working directory.
-func catalogJSONLFixture(t *testing.T) string {
+func catalogFixture(t *testing.T) string {
 	t.Helper()
 
 	repoDir := helpers.TmpDirWOSymlinks(t)
@@ -638,6 +688,12 @@ Everything a VPC needs.
 // parseCatalogJSONL parses each line of rendered output and keys the entries
 // by directory. Entries arrive in discovery order, so callers may not depend
 // on the order they were written in.
+// backticks turns the tildes of a raw string literal into the backticks the
+// Markdown format writes, which a raw string literal cannot hold.
+func backticks(s string) string {
+	return strings.ReplaceAll(s, "~", "`")
+}
+
 func parseCatalogJSONL(t *testing.T, stdout string) map[string]*format.Entry {
 	t.Helper()
 
