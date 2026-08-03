@@ -47,7 +47,6 @@ Creates a VPC.
 | Directory | ~modules/vpc~ |
 | Version | ~v1.2.3~ |
 | Component source | ~github.com/acme/repo//modules/vpc~ |
-| Install | ~terragrunt scaffold 'github.com/acme/repo//modules/vpc'~ |
 
 | Tag |
 | --- |
@@ -61,7 +60,7 @@ Body text.
 `),
 		},
 		{
-			name: "unit without a readme has no description, no tags, and is copied rather than scaffolded",
+			name: "unit without a readme has no description and no tags",
 			entry: tui.NewComponentEntry(
 				tui.NewComponentForTest(
 					tui.ComponentKindUnit,
@@ -78,7 +77,6 @@ Body text.
 | Source | ~github.com/acme/repo~ |
 | Directory | ~units/app~ |
 | Component source | ~github.com/acme/repo//units/app~ |
-| Install | copy the component's files into your working directory (~s~ in the catalog user interface) |
 
 `),
 		},
@@ -101,7 +99,6 @@ The repository itself is the component.
 | Kind | ~module~ |
 | Source | ~github.com/acme/repo~ |
 | Component source | ~github.com/acme/repo~ |
-| Install | ~terragrunt scaffold 'github.com/acme/repo'~ |
 
 ~~~markdown
 Root body.
@@ -144,9 +141,9 @@ func TestMarkdownRendererEntryTables(t *testing.T) {
 
 	assert.Equal(
 		t,
-		[]int{2, 2, 2, 2, 2, 2, 1, 1},
+		[]int{2, 2, 2, 2, 2, 1, 1},
 		tableRows(t, buf.String()),
-		"six field rows of two cells, then a tag each in a table one cell wide",
+		"five field rows of two cells, then a tag each in a table one cell wide",
 	)
 }
 

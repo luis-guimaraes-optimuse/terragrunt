@@ -33,6 +33,8 @@ const markdownHeader = `# Terragrunt Catalog
 
 Every component that ` + "`terragrunt catalog`" + ` discovers has a section below, holding the metadata the catalog user interface shows for it, followed by the component's README.
 
+Each section records a component source, which is what ` + "`terragrunt scaffold`" + ` takes to install that component.
+
 Sections are written as components are discovered, so they interleave the repositories being loaded, and their order changes between runs. READMEs are reproduced inside fenced blocks, so a heading within one is not part of this document's structure.
 
 The document ends with an index of the components it holds and a count of what was discovered, which is how a reader tells a complete document from one that was cut short.
@@ -85,7 +87,7 @@ func (r *MarkdownRenderer) Entry(w io.Writer, e *tui.ComponentEntry) error {
 
 	buf.WriteString(fieldTableHeader)
 
-	for _, f := range entryFields(entry, e.Component.Kind) {
+	for _, f := range entryFields(entry) {
 		if f.value == "" {
 			continue
 		}
@@ -159,7 +161,7 @@ type field struct {
 // entryFields returns a component's metadata rows in the order they are
 // written. A row whose value is empty is left out, so the table carries what
 // the component actually has rather than a column of empty cells.
-func entryFields(e *Entry, kind tui.ComponentKind) []field {
+func entryFields(e *Entry) []field {
 	return []field{
 		{label: "Kind", value: code(e.Kind)},
 		{label: "Source", value: code(e.Source)},
@@ -167,21 +169,7 @@ func entryFields(e *Entry, kind tui.ComponentKind) []field {
 		{label: "Version", value: code(e.Version)},
 		{label: "URL", value: autolink(e.URL)},
 		{label: "Component source", value: code(e.ComponentSource)},
-		{label: "Install", value: install(e, kind)},
 	}
-}
-
-// install reports how to get a copy of the component. Modules and templates
-// are scaffolded, which the `scaffold` command does outside the catalog;
-// units and stacks are installed by copying their files, which only the
-// catalog user interface does.
-func install(e *Entry, kind tui.ComponentKind) string {
-	if kind.IsCopyable() {
-		return "copy the component's files into your working directory" +
-			" (`s` in the catalog user interface)"
-	}
-
-	return code("terragrunt scaffold '" + e.ComponentSource + "'")
 }
 
 // writeTags writes a component's tags as a table of their own. A component

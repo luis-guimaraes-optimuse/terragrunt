@@ -56,7 +56,6 @@ Creates a VPC.
 | Version | `v0.14.2` |
 | URL | <https://github.com/acme/infrastructure-modules/tree/main/modules/vpc> |
 | Component source | `github.com/acme/infrastructure-modules//modules/vpc` |
-| Install | `terragrunt scaffold 'github.com/acme/infrastructure-modules//modules/vpc'` |
 
 | Tag |
 | --- |
@@ -67,7 +66,7 @@ Everything a VPC needs.
 ```
 ````
 
-The description leads the section as prose, and the rest of the entry follows as a table. The rows hold the fields described under [Entry structure](#entry-structure), and the `Install` row reports how to get a copy of the component: `terragrunt scaffold` for a module or template, and copying the files for a unit or stack, which is what the TUI does when you press `s`. `terragrunt scaffold` does not install a unit or a stack; it reads the source as an OpenTofu/Terraform module and generates a `terragrunt.hcl` pointing at it.
+The description leads the section as prose, and the rest of the entry follows as a table. The rows hold the fields described under [Entry structure](#entry-structure). The `Component source` row is what you hand to [`terragrunt scaffold`](/features/catalog/scaffold) to install the component, whatever kind of component it is.
 
 Tags get a table of their own, a row each, and an entry that declares none has no tag table.
 
